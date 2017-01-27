@@ -21,6 +21,10 @@ if WANT_DEBUG
 eglplatform_wayland_la_CXXFLAGS += -ggdb -O0
 endif
 
+if !WANT_WL_SERVERSIDE_BUFFERS
+eglplatform_wayland_la_CXXFLAGS += -DHYBRIS_NO_SERVER_SIDE_BUFFERS
+endif
+
 
 
 eglplatform_wayland_la_LDFLAGS = \
@@ -28,7 +32,11 @@ eglplatform_wayland_la_LDFLAGS = \
 	$(top_builddir)/egl/platforms/common/libhybris-eglplatformcommon.la \
 	$(top_builddir)/hardware/libhardware.la \
 	$(WAYLAND_CLIENT_LIBS)
-
 if HAS_ANDROID_4_2_0
 eglplatform_wayland_la_LDFLAGS += $(top_builddir)/libsync/libsync.la
 endif
+
+if HAS_ANDROID_5_0_0
+eglplatform_wayland_la_LDFLAGS += $(top_builddir)/libsync/libsync.la
+endif
+

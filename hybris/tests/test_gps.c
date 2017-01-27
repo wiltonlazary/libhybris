@@ -102,17 +102,6 @@ static const GpsNiInterface* get_gps_ni_interface(const GpsInterface *gps)
   return interface;
 }
 
-static const GpsDebugInterface* get_gps_debug_interface(const GpsInterface *gps)
-{
-  const GpsDebugInterface* interface = NULL;
-
-  if(gps)
-  {
-    interface = (const GpsDebugInterface*)gps->get_extension(GPS_DEBUG_INTERFACE);
-  }
-  return interface;
-}
-
 static const GpsXtraInterface* get_gps_extra_interface(const GpsInterface *gps)
 {
   const GpsXtraInterface* interface = NULL;
@@ -288,19 +277,11 @@ static void agps_handle_status_callback(AGpsStatus *status)
   {
     case GPS_REQUEST_AGPS_DATA_CONN:
         fprintf(stdout, "*** data_conn_open\n");
-#ifndef HAS_ANDROID_4_2_0
-        AGps->data_conn_open(AGPS_TYPE_SUPL, apn, AGPS_APN_BEARER_IPV4);
-#else
 	AGps->data_conn_open(apn);
-#endif
         break;
     case GPS_RELEASE_AGPS_DATA_CONN:
         fprintf(stdout, "*** data_conn_closed\n");
-#ifndef HAS_ANDROID_4_2_0
-	AGps->data_conn_closed(AGPS_TYPE_SUPL);
-#else
         AGps->data_conn_closed();
-#endif
         break;
     case GPS_AGPS_DATA_CONNECTED:
         fprintf(stdout, "*** data_conn_established\n");
@@ -414,7 +395,7 @@ void sigint_handler(int signum)
   fprintf(stdout, "*** cleanup\n");
   if(AGps)
   {
-#ifndef HAS_ANDROID_4_2_0
+#if ! defined(HAS_ANDROID_4_2_0) && ! defined(HAS_ANDROID_5_0_0)
         AGps->data_conn_closed(AGPS_TYPE_SUPL);
 #else
         AGps->data_conn_closed();
@@ -431,7 +412,10 @@ void sigint_handler(int signum)
 int main(int argc, char *argv[])
 {
   int sleeptime = 6000, opt, initok = 0;
-  int coldstart = 0, extra = 0, ulp = 0;
+  int coldstart = 0, extra = 0;
+#ifdef HAVE_ULP
+  int ulp = 0;
+#endif
   struct timeval tv;
   int agps = 0, agpsril = 0, injecttime = 0, injectlocation = 0;
   char *location = 0, *longitude, *latitude;
@@ -468,7 +452,9 @@ int main(int argc, char *argv[])
 		   agps_server = optarg;
 		   break;
 		case 'u':
+#ifdef HAVE_ULP
 		   ulp = 1;
+#endif
 		   break;
 		case 'x':
                    extra = 1;

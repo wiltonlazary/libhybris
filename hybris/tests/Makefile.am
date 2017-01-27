@@ -1,31 +1,48 @@
 bin_PROGRAMS = \
+	test_audio \
 	test_egl \
 	test_egl_configs \
 	test_glesv2 \
-	test_ui \
-	test_sf \
 	test_sensors \
 	test_input \
+	test_lights \
 	test_camera \
 	test_vibrator \
-	test_gps
+	test_media \
+	test_recorder \
+	test_gps \
+	test_wifi
 
 if HAS_ANDROID_4_2_0
 bin_PROGRAMS += test_hwcomposer
 endif
 
-if HAS_LIBNFC_NXP_HEADERS
-bin_PROGRAMS += test_nfc
+if HAS_ANDROID_5_0_0
+bin_PROGRAMS += test_hwcomposer
 endif
 
-# Please re-enable your test programs according to android
-# if HAS_ANDROID_X_Y_Z
-# bin_PROGRAMS += test_audio 
-# endif
 
+if HAS_LIBNFC_NXP_HEADERS
+# test_nfc depends on NFC hardware HAL interface, which is only
+# available until Android API level 15 (v4.0.3, v4.0.4).
+if HAS_ANDROID_4_0_3
+bin_PROGRAMS += test_nfc
+else
+if HAS_ANDROID_4_1_0
+bin_PROGRAMS += test_nfc
+else
+if HAS_ANDROID_5_0_0
+bin_PROGRAMS += test_nfc
+endif
+endif
+endif
+endif
+
+bin_PROGRAMS += test_audio
 test_audio_SOURCES = test_audio.c
 test_audio_CFLAGS = \
-	-I$(top_srcdir)/include
+	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/include/android
 test_audio_LDADD = \
 	$(top_builddir)/common/libhybris-common.la \
 	$(top_builddir)/hardware/libhardware.la
@@ -141,15 +158,32 @@ test_camera_LDADD = \
 	$(top_builddir)/camera/libcamera.la \
 	$(top_builddir)/input/libis.la
 
+test_media_SOURCES = test_media.c
+test_media_CFLAGS = \
+	-I$(top_srcdir)/include
+test_media_LDADD = \
+	$(top_builddir)/common/libhybris-common.la \
+	$(top_builddir)/egl/libEGL.la \
+	$(top_builddir)/glesv2/libGLESv2.la \
+	$(top_builddir)/media/libmedia.la \
+	$(top_builddir)/sf/libsf.la
+
+test_recorder_SOURCES = test_recorder.c
+test_recorder_CFLAGS = \
+	-I$(top_srcdir)/include
+test_recorder_LDADD = \
+	$(top_builddir)/common/libhybris-common.la \
+	$(top_builddir)/egl/libEGL.la \
+	$(top_builddir)/glesv2/libGLESv2.la \
+	$(top_builddir)/media/libmedia.la \
+	$(top_builddir)/camera/libcamera.la \
+	$(top_builddir)/input/libis.la \
+	$(top_builddir)/sf/libsf.la
+
 test_gps_SOURCES = test_gps.c
-test_gps_CFLAGS = -pthread \
+test_gps_CFLAGS = \
 	-I$(top_srcdir)/include \
 	$(ANDROID_HEADERS_CFLAGS)
-
-if HAS_ANDROID_4_2_0
-test_gps_CFLAGS += -DHAS_ANDROID_4_2_0
-endif
-
 test_gps_LDFLAGS = -pthread
 test_gps_LDADD =  \
 	$(top_builddir)/common/libhybris-common.la \
@@ -158,10 +192,11 @@ test_gps_LDADD =  \
 test_nfc_SOURCES = test_nfc.c
 test_nfc_CFLAGS = \
 	-I$(top_srcdir)/include \
-	$(ANDROID_HEADERS_CFLAGS)
-
-test_nfc_LDFLAGS =
+	$(ANDROID_HEADERS_CFLAGS) \
+	-Wno-error=unused-function
+test_nfc_LDFLAGS = -pthread
 test_nfc_LDADD = \
+	$(top_builddir)/common/libhybris-common.la \
 	$(top_builddir)/libnfc_nxp/libnfc_nxp.la \
 	$(top_builddir)/hardware/libhardware.la
 
@@ -172,4 +207,11 @@ test_vibrator_CFLAGS = \
 test_vibrator_LDADD = \
 	$(top_builddir)/common/libhybris-common.la \
 	$(top_builddir)/vibrator/libvibrator.la
+
+test_wifi_SOURCES = test_wifi.c
+test_wifi_CFLAGS = \
+	-I$(top_srcdir)/include \
+	$(ANDROID_HEADERS_CFLAGS)
+test_wifi_LDADD = \
+	$(top_builddir)/wifi/libwifi.la
 

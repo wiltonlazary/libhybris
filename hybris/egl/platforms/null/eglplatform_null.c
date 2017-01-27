@@ -2,31 +2,20 @@
 #include <ws.h>
 #include <dlfcn.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <hybris/common/binding.h>
 #include <eglplatformcommon.h>
 #include "logging.h"
 
-static void * (*_androidCreateDisplaySurface)();
-
-static void *_libui = NULL;
-
 static gralloc_module_t *gralloc = 0;
 static alloc_device_t *alloc = 0;
 
-static void _init_androidui()
-{
-       _libui = (void *) android_dlopen("/system/lib/libui.so", RTLD_LAZY);
-}
+#pragma GCC visibility push(hidden)
+HYBRIS_LIBRARY_INITIALIZE(nullui, "/system/lib/libui.so");
+#pragma GCC visibility pop
 
-#define UI_DLSYM(fptr, sym) do { if (_libui == NULL) { _init_androidui(); }; if (*(fptr) == NULL) { *(fptr) = (void *) android_dlsym(_libui, sym); } } while (0) 
-
-static EGLNativeWindowType android_createDisplaySurface()
-{
- 	UI_DLSYM(&_androidCreateDisplaySurface, "android_createDisplaySurface");
-	return (EGLNativeWindowType) (*_androidCreateDisplaySurface)();
-}
-
+static HYBRIS_IMPLEMENT_FUNCTION0(nullui, EGLNativeWindowType, android_createDisplaySurface);
 
 static void nullws_init_module(struct ws_egl_interface *egl_iface)
 {
@@ -38,12 +27,17 @@ static void nullws_init_module(struct ws_egl_interface *egl_iface)
 
 }
 
-static int nullws_IsValidDisplay(EGLNativeDisplayType display)
+static struct _EGLDisplay *nullws_GetDisplay(EGLNativeDisplayType display)
 {
-	return 1;
+	return malloc(sizeof(struct _EGLDisplay));
 }
 
-static EGLNativeWindowType nullws_CreateWindow(EGLNativeWindowType win, EGLNativeDisplayType display)
+static void nullws_Terminate(struct _EGLDisplay *dpy)
+{
+	free(dpy);
+}
+
+static EGLNativeWindowType nullws_CreateWindow(EGLNativeWindowType win, struct _EGLDisplay *display)
 {
 	if (win == 0)
 	{
@@ -60,7 +54,8 @@ static void nullws_DestroyWindow(EGLNativeWindowType win)
 
 struct ws_module ws_module_info = {
 	nullws_init_module,
-	nullws_IsValidDisplay,
+	nullws_GetDisplay,
+	nullws_Terminate,
 	nullws_CreateWindow,
 	nullws_DestroyWindow,
 	eglplatformcommon_eglGetProcAddress,

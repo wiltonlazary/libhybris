@@ -5,7 +5,8 @@ pkgconfig_DATA = hwcomposer-egl.pc
 
 hwcomposerwindowincludedir = $(includedir)/hybris/hwcomposerwindow
 hwcomposerwindowinclude_HEADERS = \
-        hwcomposer_window.h
+        hwcomposer_window.h \
+        hwcomposer.h
 
 libhybris_hwcomposerwindow_la_SOURCES = \
 	hwcomposer_window.cpp
@@ -32,7 +33,9 @@ libhybris_hwcomposerwindow_la_LDFLAGS = \
 if HAS_ANDROID_4_2_0
 libhybris_hwcomposerwindow_la_LDFLAGS += $(top_builddir)/libsync/libsync.la
 endif
-
+if HAS_ANDROID_5_0_0
+libhybris_hwcomposerwindow_la_LDFLAGS += $(top_builddir)/libsync/libsync.la
+endif
 pkglib_LTLIBRARIES = eglplatform_hwcomposer.la
 
 eglplatform_hwcomposer_la_SOURCES = \

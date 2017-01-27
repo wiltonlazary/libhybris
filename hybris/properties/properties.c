@@ -47,7 +47,6 @@ static int send_prop_msg(prop_msg_t *msg,
 		void (*propfn)(const char *, const char *, void *),
 		void *cookie)
 {
-	struct pollfd pollfds[1];
 	union {
 		struct sockaddr_un addr;
 		struct sockaddr addr_g;
@@ -86,8 +85,6 @@ static int send_prop_msg(prop_msg_t *msg,
 	r = TEMP_FAILURE_RETRY(send(s, msg, sizeof(prop_msg_t), 0));
 
 	if (r == sizeof(prop_msg_t)) {
-		pollfds[0].fd = s;
-		pollfds[0].events = 0;
 		// We successfully wrote to the property server, so use recv
 		// in case we need to get a property. Once the other side is
 		// finished, the socket is closed.
@@ -151,7 +148,7 @@ static int property_get_socket(const char *key, char *value, const char *default
 
 	/* In case it's null, just use the default */
 	if ((strlen(msg.value) == 0) && (default_value)) {
-		if (strlen(default_value) >= PROP_VALUE_MAX -1)	return -1;
+		if (strlen(default_value) > PROP_VALUE_MAX -1)	return -1;
 		strcpy(msg.value, default_value);
 	}
 
@@ -164,11 +161,26 @@ int property_get(const char *key, char *value, const char *default_value)
 {
 	char *ret = NULL;
 
-	if ((key) && (strlen(key) >= PROP_NAME_MAX -1)) return -1;
+	if ((key) && (strlen(key) > PROP_NAME_MAX -1)) return -1;
 	if (value == NULL) return -1;
 
-	if (property_get_socket(key, value, default_value) == 0)
-		return strlen(value);
+
+	// Runtime cache will serialize property lookups within the process.
+	// This will increase latency if multiple threads are doing many
+	// parallel lookups to new properties, but the overhead should
+	// be offset with the caching eventually.
+	runtime_cache_lock();
+	if (runtime_cache_get(key, value) == 0) {
+		ret = value;
+	} else if (property_get_socket(key, value, default_value) == 0) {
+		runtime_cache_insert(key, value);
+		ret = value;
+	}
+	runtime_cache_unlock();
+
+	if (ret)
+		return strlen(ret);
+
 
 	/* In case the socket is not available, search the property file cache by hand */
 	ret = hybris_propcache_find(key);
@@ -193,8 +205,12 @@ int property_set(const char *key, const char *value)
 
 	if (key == 0) return -1;
 	if (value == 0) value = "";
-	if (strlen(key) >= PROP_NAME_MAX -1) return -1;
-	if (strlen(value) >= PROP_VALUE_MAX -1) return -1;
+	if (strlen(key) > PROP_NAME_MAX -1) return -1;
+	if (strlen(value) > PROP_VALUE_MAX -1) return -1;
+
+	runtime_cache_lock();
+	runtime_cache_remove(key);
+	runtime_cache_unlock();
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = PROP_MSG_SETPROP;
